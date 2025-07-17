@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>2D - SB</title>
+    <style>
+        *{
+            padding: 0;
+            margin: 0;
+        }
+        canvas{
+            background-color: beige;
+            display: block;
+            margin: 0 auto;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="myCanvas" width="500" height="350"></canvas>
+    <script>var canvas = document.getElementById("myCanvas"); // Elemento canvas
+var ctx = canvas.getContext("2d"); // Contexto de dibujo 2D
+
+// --- Ajustes para un juego más amplio y con mejor aspecto ---
+canvas.width = 800; // Aumentamos el ancho del canvas
+canvas.height = 600; // Aumentamos el alto del canvas
+
+var ballRadius = 10; // Radio de la pelota
+var x = canvas.width / 2; // Posición X inicial de la pelota
+var y = canvas.height - 30; // Posición Y inicial de la pelota
+var dx = 3; // Velocidad X inicial de la pelota (un poco más rápido)
+var dy = -3; // Velocidad Y inicial de la pelota (un poco más rápido)
+
+var paddleHeight = 10; // Alto de la paleta
+var paddleWidth = 100; // Ancho de la paleta (un poco más ancha)
+var paddleX = (canvas.width - paddleWidth) / 2; // Posición X inicial de la paleta
+
+var rightPressed = false; // ¿Flecha derecha presionada?
+var leftPressed = false; // ¿Flecha izquierda presionada?
+
+var brickRowCount = 7; // Más filas de ladrillos
+var brickColumnCount = 5; // Más columnas de ladrillos
+var brickWidth = 90; // Ajustamos el ancho del ladrillo para el nuevo canvas
+var brickHeight = 25; // Ajustamos el alto del ladrillo
+var brickPadding = 10; // Espacio entre ladrillos
+var brickOffsetTop = 50; // Margen superior de ladrillos (más espacio)
+var brickOffsetLeft = 50; // Margen izquierdo de ladrillos (más espacio)
+
+var score = 0; // Puntuación del juego
+var lives = 3; // Vidas del jugador
+
+// --- Corazones para las vidas ---
+var heartImage = new Image();
+// Asegúrate de que esta ruta sea correcta para tu imagen de corazón.
+// La imagen que subiste se llama 'image_01b3e3.png', la usaré.
+heartImage.src = 'image_01b3e3.png'; 
+var heartSize = 25; // Tamaño del corazón en el canvas
+
+var bricks = []; // Array para todos los ladrillos
+for (c = 0; c < brickColumnCount; c++) { // Recorre columnas
+    bricks[c] = []; // Crea array para la columna
+    for (r = 0; r < brickRowCount; r++) { // Recorre filas
+        bricks[c][r] = { x: 0, y: 0, status: 1 }; // Inicializa ladrillo (status 1 = visible)
+    }
+}
+
+document.addEventListener("keydown", keyDownHandler, false); // Escucha tecla presionada
+document.addEventListener("keyup", keyUpHandler, false); // Escucha tecla soltada
+document.addEventListener("mousemove", mouseMoveHandler, false); // Escucha movimiento del ratón
+
+function keyDownHandler(e) { // Al presionar tecla
+    if (e.keyCode == 39) { // Si es flecha derecha
+        rightPressed = true; // Marca presionada
+    } else if (e.keyCode == 37) { // Si es flecha izquierda
+        leftPressed = true; // Marca presionada
+    }
+}
+function keyUpHandler(e) { // Al soltar tecla
+    if (e.keyCode == 39) { // Si es flecha derecha
+        rightPressed = false; // Marca NO presionada
+    } else if (e.keyCode == 37) { // Si es flecha izquierda
+        leftPressed = false; // Marca NO presionada
+    }
+}
+function mouseMoveHandler(e) { // Al mover el ratón
+    var relativeX = e.clientX - canvas.offsetLeft; // Posición X del ratón relativa al canvas
+    // Si el ratón está dentro del canvas
+    if (relativeX > 0 && relativeX < canvas.width) {
+        paddleX = relativeX - paddleWidth / 2; // Mueve la paleta al centro del puntero
+    }
+}
+
+function collisionDetection() { // Detecta colisiones de la pelota con ladrillos
+    for (c = 0; c < brickColumnCount; c++) { // Recorre columnas de ladrillos
+        for (r = 0; r < brickRowCount; r++) { // Recorre filas de ladrillos
+            var b = bricks[c][r]; // Ladrillo actual
+            if (b.status == 1) { // Si el ladrillo está visible
+                // Si la pelota está dentro del ladrillo
+                if (x > b.x && x < b.x + brickWidth && y > b.y && y < b.y + brickHeight) {
+                    dy = -dy; // Invierte dirección Y (rebota)
+                    b.status = 0; // Ladrillo desaparece
+                    score++; // Aumenta puntaje
+
+                    // --- Acelerar la pelota gradualmente ---
+                    if (Math.abs(dx) < 8) dx *= 1.05; // Aumenta velocidad X
+                    if (Math.abs(dy) < 8) dy *= 1.05; // Aumenta velocidad Y
+
+                    if (score == brickRowCount * brickColumnCount) { // Si todos los ladrillos rotos
+                        alert("¡FELICITACIONES, GANASTE!"); // Mensaje de victoria
+                        document.location.reload(); // Recarga la página
+                    }
+                }
+            }
+        }
+    }
+}
+
+function drawBall() { // Dibuja la pelota
+    ctx.beginPath(); // Inicia trazo
+    ctx.arc(x, y, ballRadius, 0, Math.PI * 2); // Dibuja el círculo
+    ctx.fillStyle = "#FFC300"; // Color de la pelota (amarillo vibrante)
+    ctx.shadowBlur = 5; // Sombra para la pelota
+    ctx.shadowColor = "#FFC300";
+    ctx.fill(); // Rellena la pelota
+    ctx.closePath(); // Cierra trazo
+    ctx.shadowBlur = 0; // Resetear la sombra
+}
+
+function drawPaddle() { // Dibuja la paleta
+    ctx.beginPath(); // Inicia trazo
+    ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight); // Dibuja el rectángulo
+    ctx.fillStyle = "#DAF7A6"; // Color de la paleta (verde claro)
+    ctx.shadowBlur = 10; // Sombra para la paleta
+    ctx.shadowColor = "#DAF7A6";
+    ctx.fill(); // Rellena la paleta
+    ctx.closePath(); // Cierra trazo
+    ctx.shadowBlur = 0; // Resetear la sombra
+}
+
+function drawBricks() { // Dibuja todos los ladrillos
+    for (c = 0; c < brickColumnCount; c++) { // Recorre columnas
+        for (r = 0; r < brickRowCount; r++) { // Recorre filas
+            if (bricks[c][r].status == 1) { // Si el ladrillo está visible
+                var brickX = (r * (brickWidth + brickPadding)) + brickOffsetLeft; // Posición X del ladrillo
+                var brickY = (c * (brickHeight + brickPadding)) + brickOffsetTop; // Posición Y del ladrillo
+                bricks[c][r].x = brickX; // Guarda posición X
+                bricks[c][r].y = brickY; // Guarda posición Y
+                ctx.beginPath(); // Inicia trazo
+                ctx.rect(brickX, brickY, brickWidth, brickHeight); // Dibuja el ladrillo
+
+                // Colores variados para los ladrillos por fila
+                var brickColor;
+                if (c == 0) brickColor = "#C70039"; // Rojo oscuro
+                else if (c == 1) brickColor = "#900C3F"; // Morado oscuro
+                else if (c == 2) brickColor = "#581845"; // Violeta oscuro
+                else if (c == 3) brickColor = "#FF5733"; // Naranja
+                else brickColor = "#FFC300"; // Amarillo
+
+                ctx.fillStyle = brickColor; // Color del ladrillo
+                ctx.shadowBlur = 3; // Sombra ligera para los ladrillos
+                ctx.shadowColor = brickColor;
+                ctx.fill(); // Rellena el ladrillo
+                ctx.closePath(); // Cierra trazo
+                ctx.shadowBlur = 0; // Resetear la sombra
+            }
+        }
+    }
+}
+
+function drawScore() { // Dibuja el puntaje en pantalla
+    ctx.font = "20px Arial"; // Fuente del texto (más grande)
+    ctx.fillStyle = "#FFFFFF"; // Color del texto (blanco)
+    ctx.fillText("Puntaje: " + score, 8, 30); // Dibuja el texto
+}
+
+function drawHearts() { // Dibuja los corazones en pantalla
+    for (i = 0; i < lives; i++) {
+        // Asegúrate de que la imagen esté cargada antes de intentar dibujarla
+        if (heartImage.complete && heartImage.naturalWidth !== 0) {
+            ctx.drawImage(heartImage, canvas.width - (heartSize + 5) * (i + 1), 10, heartSize, heartSize);
+        } else {
+            // Fallback si la imagen no se carga (dibuja un rectángulo rojo)
+            ctx.beginPath();
+            ctx.rect(canvas.width - (heartSize + 5) * (i + 1), 10, heartSize, heartSize);
+            ctx.fillStyle = "red";
+            ctx.fill();
+            ctx.closePath();
+        }
+    }
+}
+
+function draw() { // Función principal del juego (bucle de animación)
+    ctx.clearRect(0, 0, canvas.width, canvas.height); // Limpia todo el canvas
+
+    // Fondo del canvas
+    ctx.fillStyle = "#34495E"; // Un color de fondo oscuro y suave
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+    drawBricks(); // Dibuja ladrillos
+    drawBall(); // Dibuja pelota
+    drawPaddle(); // Dibuja paleta
+    drawScore(); // Dibuja puntaje
+    drawHearts(); // Dibuja corazones (vidas)
+    collisionDetection(); // Revisa colisiones con ladrillos
+
+    // Colisión de la pelota con bordes laterales
+    if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
+        dx = -dx; // Invierte dirección horizontal
+    }
+    // Colisión de la pelota con borde superior
+    if (y + dy < ballRadius) {
+        dy = -dy; // Invierte dirección vertical
+    }
+    // Colisión de la pelota con borde inferior
+    else if (y + dy > canvas.height - ballRadius) {
+        // Si la pelota toca la paleta
+        if (x > paddleX && x < paddleX + paddleWidth) {
+            dy = -dy; // Rebota la pelota
+        }
+        // Si la pelota cae fuera de la paleta
+        else {
+            lives--; // Pierde una vida
+            if (!lives) { // Si no quedan vidas
+                alert("GAME OVER"); // Mensaje de Game Over
+                document.location.reload(); // Recarga la página
+            } else { // Si aún quedan vidas
+                x = canvas.width / 2; // Reinicia posición X de pelota
+                y = canvas.height - 30; // Reinicia posición Y de pelota
+                dx = 3; // Reinicia velocidad X
+                dy = -3; // Reinicia velocidad Y
+                paddleX = (canvas.width - paddleWidth) / 2; // Reinicia posición de paleta
+            }
+        }
+    }
+
+    // Movimiento de la paleta con teclas (si no se usa el ratón)
+    if (rightPressed && paddleX < canvas.width - paddleWidth) {
+        paddleX += 7; // Mueve paleta a la derecha
+    } else if (leftPressed && paddleX > 0) {
+        paddleX -= 7; // Mueve paleta a la izquierda
+    }
+
+    x += dx; // Actualiza posición X de la pelota
+    y += dy; // Actualiza posición Y de la pelota
+
+    requestAnimationFrame(draw)
+}
+
+heartImage.onload = function() {
+    draw();
+};
+if (heartImage.complete && heartImage.naturalWidth !== 0) {
+    draw();
+}
+draw();</script>
+</body>
+</html>
